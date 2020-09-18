@@ -51,6 +51,12 @@ def getUpdateCommand(args):
 
     return command.format(args["password"], autoremove, flag)
 
+def findPropertyValue(response, property):
+    for line in response.split(newline):
+        if line.startswith(property):
+            return line[line.index("\"") + 1:-1]
+    raise Exception("findPropertyValue() - Property '{0}' not found".format(property))
+
 def vboxmanage(command):
     p = subprocess.Popen(binary + " " + command, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     stdout, stderr = p.communicate()
@@ -80,11 +86,14 @@ def parseMachines(list):
         vms.append(vm)
 
 def update(vm, args):
+    vmInfo = vboxmanage("showvminfo {0} --machinereadable".format(vm["uuid"]))
 
-    # Check if VM is Windows
-    osType = vboxmanage("showvminfo {0} --machinereadable".format(vm["uuid"]))
-    osType = osType.split(newline)[2]
-    if "Windows" in osType:
+    # Skip VMs in saved or running state
+    if "poweroff" != findPropertyValue(vmInfo, "VMState"):
+        return False
+
+    operatingSystem = findPropertyValue(vmInfo, "ostype")
+    if "Windows" == operatingSystem:
         return False
 
     vboxmanage("startvm {0}".format(vm["uuid"]))
