@@ -9,16 +9,17 @@ newline = "\r\n"
 
 
 def parseArguments(argv):
+    """Parse given command line arguments"""
+
     if 3 > len(argv):
         return False
 
+    argv.pop() # Remove script name
     arguments = {
-        "username": argv[1],
-        "password": argv[2],
+        "username": argv.pop(),
+        "password": argv.pop(),
         "remove": False
     }
-
-    argv = argv[3:]
 
     while len(argv):
         arg = argv.pop()
@@ -32,6 +33,8 @@ def parseArguments(argv):
     return arguments
 
 def printHelp():
+    """Print help instructions"""
+
     print("""Usage:
 python update.py $username $password [arguments]
 
@@ -41,6 +44,8 @@ Arguments
     exit()
 
 def getUpdateCommand(args):
+    """Create update command based on options"""
+
     command = ('echo {0} | sudo -S apt update && '
         'echo {0} | sudo -S apt upgrade -y && '
         '{1} echo {2}')
@@ -51,13 +56,17 @@ def getUpdateCommand(args):
 
     return command.format(args["password"], autoremove, flag)
 
-def findPropertyValue(response, property):
-    for line in response.split(newline):
+def findPropertyValue(vminfo, property):
+    """Retrieve value from VBoxManage showvminfo"""
+
+    for line in vminfo.split(newline):
         if line.startswith(property):
             return line[line.index("\"") + 1:-1]
     raise Exception("findPropertyValue() - Property '{0}' not found".format(property))
 
 def vboxmanage(command):
+    """Run VBoxManage command"""
+
     p = subprocess.Popen(binary + " " + command, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     stdout, stderr = p.communicate()
     stdout = stdout.decode("utf-8")
@@ -65,6 +74,8 @@ def vboxmanage(command):
     return stdout + stderr
 
 def parseMachines(list):
+    """Parse response from 'VBoxManage list vms'"""
+
     vms = []
     for line in list.split(newline):
 
@@ -86,6 +97,8 @@ def parseMachines(list):
         vms.append(vm)
 
 def update(vm, args):
+    """Update virtual machine"""
+
     vmInfo = vboxmanage("showvminfo {0} --machinereadable".format(vm["uuid"]))
 
     # Skip VMs in saved or running state
