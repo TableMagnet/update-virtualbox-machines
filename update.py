@@ -80,6 +80,13 @@ def parseMachines(list):
         vms.append(vm)
 
 def update(vm, args):
+
+    # Check if VM is Windows
+    osType = vboxmanage("showvminfo {0} --machinereadable".format(vm["uuid"]))
+    osType = osType.split(newline)[2]
+    if "Windows" in osType:
+        return False
+
     vboxmanage("startvm {0}".format(vm["uuid"]))
     time.sleep(60) # Wait for VM to start
     response = ""
@@ -112,6 +119,9 @@ def main():
         return False
 
     machines = parseMachines(vboxmanage("list vms"))
-    update(machines[0], args)
+    print(len(machines), "found")
+    for i in range(len(machines)):
+        print("Updating", i, machines[i]["name"])
+        success = update(machines[i], args)
 
 main()
