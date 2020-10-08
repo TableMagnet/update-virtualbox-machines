@@ -19,7 +19,8 @@ def parseArguments(argv):
     arguments = {
         "username": argv.pop(),
         "password": argv.pop(),
-        "remove": False
+        "remove": False,
+        "shutdown": False
     }
 
     while len(argv):
@@ -27,6 +28,8 @@ def parseArguments(argv):
 
         if "-r" == arg:
             arguments["remove"] = True
+        elif "-s" == arg:
+            arguments["shutdown"] = True
         else:
             print("Unknown argument:", arg, newline)
             return False
@@ -40,7 +43,8 @@ def printHelp():
 python update.py $username $password [arguments]
 
 Arguments
--r  remove  Autoremove packages
+-r  remove      Autoremove packages
+-s  shutdown    Shutdown host once finished
 """)
     exit()
 
@@ -64,6 +68,13 @@ def findPropertyValue(vminfo, property):
         if line.startswith(property):
             return line[line.index("\"") + 1:-1]
     raise Exception("findPropertyValue() - Property '{0}' not found".format(property))
+
+def getHostOS():
+    """Check the host OS type"""
+
+    if "win32" == sys.platform:
+        return "Windows"
+    return "Linux"
 
 def vboxmanage(command):
     """Run VBoxManage command"""
@@ -154,6 +165,14 @@ def update(vm, args):
 
     vboxmanage("controlvm {0} acpipowerbutton".format(vm["uuid"]))
 
+    # Wait for machine to shutdown
+    time.sleep(30)
+    while True:
+        vmInfo = vboxmanage("showvminfo {0} --machinereadable".format(vm["uuid"]))
+        if "poweroff" == findPropertyValue(vmInfo, "VMState"):
+            break;
+        time.sleep(15)
+
     return True
 
 def main():
@@ -167,5 +186,11 @@ def main():
     for i in range(len(machines)):
         print("Updating", i, machines[i]["name"])
         success = update(machines[i], args)
+
+    if args["shutdown"]:
+        if "Windows" == getHostOS():
+            subprocess.Popen("shutdown /s /t 60")
+        else:
+            subprocess.Popen("shutdown")
 
 main()
