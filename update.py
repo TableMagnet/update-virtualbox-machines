@@ -20,7 +20,8 @@ def parseArguments(argv):
         "username": argv.pop(),
         "password": argv.pop(),
         "remove": False,
-        "shutdown": False
+        "shutdown": False,
+        "verbose": False
     }
 
     while len(argv):
@@ -30,6 +31,8 @@ def parseArguments(argv):
             arguments["remove"] = True
         elif "-s" == arg:
             arguments["shutdown"] = True
+        elif "-v" == arg:
+            arguments["verbose"] = True
         else:
             print("Unknown argument:", arg, newline)
             return False
@@ -45,6 +48,7 @@ python update.py $username $password [arguments]
 Arguments
 -r  remove      Autoremove packages
 -s  shutdown    Shutdown host once finished
+-v  verbose     Print in depth information
 """)
     exit()
 
@@ -123,6 +127,9 @@ def update(vm, args):
     if "Windows" == operatingSystem:
         return False
 
+    if args["verbose"]:
+        print("Starting machine")
+
     response = vboxmanage("startvm {0}".format(vm["uuid"]))
     time.sleep(60) # Wait for VM to start
 
@@ -130,11 +137,18 @@ def update(vm, args):
     if "successfully started" not in response:
         return False
 
+    if args["verbose"]:
+        print("Machine started successfully")
+
     attemptCount = 0
     errorDetected = False
 
     # Loop until VM is running and command succeeds
     while not errorDetected:
+
+        if args["verbose"]:
+            print("Attempt {0}: run update command".format(attemptCount))
+
         attemptCount += 1
         if 5 < attemptCount:
             errorDetected = True
@@ -150,9 +164,18 @@ def update(vm, args):
             break
 
     attemptCount = 0
+    if args["verbose"]:
+        if errorDetected:
+            print("Update command failed")
+        else:
+            print("Update command run successfully")
 
     # Loop until update is complete
     while not errorDetected:
+
+        if args["verbose"]:
+            print("Check {0}: has update completed?".format(attemptCount))
+
         attemptCount += 1
         if 20 < attemptCount: # 10 minutes (20 * 30 seconds)
             errorDetected = True
@@ -163,6 +186,14 @@ def update(vm, args):
         else:
             time.sleep(30)
 
+    if args["verbose"]:
+        if errorDetected:
+            print("Update command timed out")
+        else:
+            print("Update command completed successfully")
+
+        print("Shutting down machine")
+
     vboxmanage("controlvm {0} acpipowerbutton".format(vm["uuid"]))
 
     # Wait for machine to shutdown
@@ -172,6 +203,9 @@ def update(vm, args):
         if "poweroff" == findPropertyValue(vmInfo, "VMState"):
             break;
         time.sleep(15)
+
+    if args["verbose"]:
+        print("Shutdown complete")
 
     return True
 
@@ -186,6 +220,13 @@ def main():
     for i in range(len(machines)):
         print("Updating", i, machines[i]["name"])
         success = update(machines[i], args)
+
+        if args["verbose"]:
+            if success:
+                print("Update successful")
+            else:
+                print("Update failed")
+            print()
 
     if args["shutdown"]:
         if "Windows" == getHostOS():
