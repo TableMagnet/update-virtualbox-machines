@@ -4,7 +4,6 @@ import sys
 
 
 flag = "UpdateVirtualBoxMachinesFinalSignalOperationIsComplete"
-binary = '"C:/Program Files/Oracle/VirtualBox/VBoxManage.exe"'
 newline = "\r\n"
 
 
@@ -13,6 +12,8 @@ def parseArguments(argv):
 
     if 3 > len(argv):
         return False
+
+    argv.reverse()
 
     argv.pop() # Remove script name
     arguments = {
@@ -67,6 +68,8 @@ def findPropertyValue(vminfo, property):
 def vboxmanage(command):
     """Run VBoxManage command"""
 
+    binary = '"C:/Program Files/Oracle/VirtualBox/VBoxManage.exe"'
+
     p = subprocess.Popen(binary + " " + command, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     stdout, stderr = p.communicate()
     stdout = stdout.decode("utf-8")
@@ -109,12 +112,23 @@ def update(vm, args):
     if "Windows" == operatingSystem:
         return False
 
-    vboxmanage("startvm {0}".format(vm["uuid"]))
+    response = vboxmanage("startvm {0}".format(vm["uuid"]))
     time.sleep(60) # Wait for VM to start
-    response = ""
+
+    # Check that machine started
+    if "successfully started" not in response:
+        return False
+
+    attemptCount = 0
+    errorDetected = False
 
     # Loop until VM is running and command succeeds
-    while True:
+    while not errorDetected:
+        attemptCount += 1
+        if 5 < attemptCount:
+            errorDetected = True
+            break
+
         response = vboxmanage(('guestcontrol {0} --username {1} --password {2} '
         'run --exe "/bin/sh" -- "/bin/sh" "-c" "{3}"'
         ''.format(vm["uuid"], args["username"], args["password"], getUpdateCommand(args))))
@@ -124,14 +138,22 @@ def update(vm, args):
         else:
             break
 
+    attemptCount = 0
+
     # Loop until update is complete
-    while True:
+    while not errorDetected:
+        attemptCount += 1
+        if 20 < attemptCount: # 10 minutes (20 * 30 seconds)
+            errorDetected = True
+            break
+
         if flag in response:
             break
         else:
             time.sleep(30)
 
     vboxmanage("controlvm {0} acpipowerbutton".format(vm["uuid"]))
+
     return True
 
 def main():
