@@ -27,7 +27,9 @@ def parseArguments(argv):
     while len(argv):
         arg = argv.pop()
 
-        if "-r" == arg:
+        if "-h" == arg:
+            return False
+        elif "-r" == arg:
             arguments["remove"] = True
         elif "-s" == arg:
             arguments["shutdown"] = True
@@ -43,13 +45,13 @@ def printHelp():
     """Print help instructions"""
 
     print("""Usage:
-python update.py $username $password [arguments]
+python3 update.py $username $password [arguments]
 
 Arguments
+-h  help        Display help
 -r  remove      Autoremove packages
 -s  shutdown    Shutdown host once finished
--v  verbose     Print in depth information
-""")
+-v  verbose     Print detailed information""")
     exit()
 
 def getUpdateCommand(args):
@@ -114,6 +116,12 @@ def parseMachines(list):
         vm["uuid"] = line[line.index("\"") + 3:-1] # skip quote, space & braces
         vms.append(vm)
 
+def printIfVerbose(message, verbose):
+    """Message to print if verbose option set"""
+
+    if verbose:
+        print(message)
+
 def update(vm, args):
     """Update virtual machine"""
 
@@ -127,8 +135,7 @@ def update(vm, args):
     if "Windows" == operatingSystem:
         return False
 
-    if args["verbose"]:
-        print("Starting machine")
+    printIfVerbose("Starting machine", args["verbose"])
 
     response = vboxmanage("startvm {0}".format(vm["uuid"]))
     time.sleep(60) # Wait for VM to start
@@ -137,18 +144,14 @@ def update(vm, args):
     if "successfully started" not in response:
         return False
 
-    if args["verbose"]:
-        print("Machine started successfully")
+    printIfVerbose("Machine started successfully", args["verbose"])
 
     attemptCount = 0
     errorDetected = False
+    printIfVerbose("Waiting to run update command", args["verbose"])
 
     # Loop until VM is running and command succeeds
     while not errorDetected:
-
-        if args["verbose"]:
-            print("Attempt {0}: run update command".format(attemptCount))
-
         attemptCount += 1
         if 5 < attemptCount:
             errorDetected = True
@@ -164,18 +167,11 @@ def update(vm, args):
             break
 
     attemptCount = 0
-    if args["verbose"]:
-        if errorDetected:
-            print("Update command failed")
-        else:
-            print("Update command run successfully")
+    printIfVerbose("Update command {0}".format("failed" if errorDetected else "run"), args["verbose"])
+    printIfVerbose("Waiting for update to finish", args["verbose"])
 
     # Loop until update is complete
     while not errorDetected:
-
-        if args["verbose"]:
-            print("Check {0}: has update completed?".format(attemptCount))
-
         attemptCount += 1
         if 20 < attemptCount: # 10 minutes (20 * 30 seconds)
             errorDetected = True
@@ -186,13 +182,8 @@ def update(vm, args):
         else:
             time.sleep(30)
 
-    if args["verbose"]:
-        if errorDetected:
-            print("Update command timed out")
-        else:
-            print("Update command completed successfully")
-
-        print("Shutting down machine")
+    printIfVerbose("Update {0}".format("timed out" if errorDetected else "completed"), args["verbose"])
+    printIfVerbose("Shutting down machine", args["verbose"])
 
     vboxmanage("controlvm {0} acpipowerbutton".format(vm["uuid"]))
 
@@ -204,8 +195,7 @@ def update(vm, args):
             break;
         time.sleep(15)
 
-    if args["verbose"]:
-        print("Shutdown complete")
+    printIfVerbose("Shutdown complete", args["verbose"])
 
     return True
 
@@ -216,17 +206,14 @@ def main():
         return False
 
     machines = parseMachines(vboxmanage("list vms"))
+
     print(len(machines), "found")
     for i in range(len(machines)):
+        print()
         print("Updating", i, machines[i]["name"])
         success = update(machines[i], args)
 
-        if args["verbose"]:
-            if success:
-                print("Update successful")
-            else:
-                print("Update failed")
-            print()
+        printIfVerbose("Update successful" if success else "Update failed", args["verbose"])
 
     if args["shutdown"]:
         if "Windows" == getHostOS():
