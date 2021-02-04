@@ -124,11 +124,7 @@ def runUpdateCommand(vm, args):
 
     command = getUpdateCommand(args)
 
-    vboxCommand = ('guestcontrol {0} --username {1} --password {2}'
-        'run --exe "/bin/sh" -- "/bin/sh" "-c" "{3}"'
-        '').format(vm["uuid"], args["username"], args["password"], command)
-
-    return vboxmanage(vboxCommand)
+    return runCommand(vm, args, command)
 
 def getUpdateCommand(args):
     """Construct update command based on options"""
@@ -142,6 +138,15 @@ def getUpdateCommand(args):
         autoremove = ("echo {0} | sudo -S apt autoremove -y &&").format(args["password"])
 
     return command.format(args["password"], autoremove, flag)
+
+def runCommand(vm, args, command):
+    """Run given command on the guest"""
+
+    vboxCommand = ('guestcontrol {0} --username {1} --password {2}'
+        'run --exe "/bin/sh" -- "/bin/sh" "-c" "{3}"'
+        '').format(vm["uuid"], args["username"], args["password"], command)
+
+    return vboxmanage(vboxCommand)
 
 def update(vm, args):
     """Update virtual machine"""
