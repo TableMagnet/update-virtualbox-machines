@@ -122,22 +122,39 @@ def printIfVerbose(message):
 def runUpdateCommand(vm, args):
     """Run update command on the guest OS"""
 
-    command = getUpdateCommand(args)
+    managers = discoverPackageManagers(vm, args)
+    command = getUpdateCommand(managers, args)
 
     return runCommand(vm, args, command)
 
-def getUpdateCommand(args):
+def discoverPackageManagers(vm, args):
+    """Identify which package managers to guest is using"""
+
+    managers = {
+        "apt": False
+    }
+
+    for manager in managers:
+        response = runCommand(vm, args, "which {0}".format(manager))
+
+        if response:
+            managers[manager] = True
+
+    return managers
+
+def getUpdateCommand(managers, args):
     """Construct update command based on options"""
 
-    command = ('echo {0} | sudo -S apt update && '
-        'echo {0} | sudo -S apt upgrade -y && '
-        '{1} echo {2}')
+    command = ""
 
-    autoremove = ""
-    if args["remove"]:
-        autoremove = ("echo {0} | sudo -S apt autoremove -y &&").format(args["password"])
+    if managers["apt"]:
+        command += '{0} apt update && {0} apt upgrade -y && '
+        if args["remove"]:
+            command += "{0} apt autoremove -y && "
 
-    return command.format(args["password"], autoremove, flag)
+    command += "echo {0}".format(flag)
+
+    return command.format("echo {0} | sudo -S".format(args["password"]))
 
 def runCommand(vm, args, command):
     """Run given command on the guest"""
