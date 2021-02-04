@@ -58,19 +58,6 @@ Arguments
 -v  verbose     Print detailed information""")
     exit()
 
-def getUpdateCommand(args):
-    """Create update command based on options"""
-
-    command = ('echo {0} | sudo -S apt update && '
-        'echo {0} | sudo -S apt upgrade -y && '
-        '{1} echo {2}')
-
-    autoremove = ""
-    if args["remove"]:
-        autoremove = ("echo {0} | sudo -S apt autoremove -y &&").format(args["password"])
-
-    return command.format(args["password"], autoremove, flag)
-
 def findPropertyValue(vminfo, property):
     """Retrieve value from VBoxManage showvminfo"""
 
@@ -132,6 +119,30 @@ def printIfVerbose(message):
     if verbose:
         print(message)
 
+def runUpdateCommand(vm, args):
+    """Run update command on the guest OS"""
+
+    command = getUpdateCommand(args)
+
+    vboxCommand = ('guestcontrol {0} --username {1} --password {2}'
+        'run --exe "/bin/sh" -- "/bin/sh" "-c" "{3}"'
+        '').format(vm["uuid"], args["username"], args["password"], command)
+
+    return vboxmanage(vboxCommand)
+
+def getUpdateCommand(args):
+    """Construct update command based on options"""
+
+    command = ('echo {0} | sudo -S apt update && '
+        'echo {0} | sudo -S apt upgrade -y && '
+        '{1} echo {2}')
+
+    autoremove = ""
+    if args["remove"]:
+        autoremove = ("echo {0} | sudo -S apt autoremove -y &&").format(args["password"])
+
+    return command.format(args["password"], autoremove, flag)
+
 def update(vm, args):
     """Update virtual machine"""
 
@@ -167,9 +178,7 @@ def update(vm, args):
             errorDetected = True
             break
 
-        response = vboxmanage(('guestcontrol {0} --username {1} --password {2} '
-        'run --exe "/bin/sh" -- "/bin/sh" "-c" "{3}"'
-        ''.format(vm["uuid"], args["username"], args["password"], getUpdateCommand(args))))
+        response = runUpdateCommand(vm, args)
 
         if "error:" in response:
             time.sleep(30)
