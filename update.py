@@ -131,7 +131,8 @@ def discoverPackageManagers(vm, args):
     """Identify which package managers to guest is using"""
 
     managers = {
-        "apt": False
+        "apt": False,
+        "snap": False,
     }
 
     for manager in managers:
@@ -148,9 +149,12 @@ def getUpdateCommand(managers, args):
     command = ""
 
     if managers["apt"]:
-        command += '{0} apt update && {0} apt upgrade -y && '
+        command += "{0} apt update && {0} apt upgrade -y && "
         if args["remove"]:
             command += "{0} apt autoremove -y && "
+
+    if managers["snap"]:
+        command += "{0} snap refresh && "
 
     command += "echo {0}".format(flag)
 
