@@ -90,7 +90,12 @@ def getHostOS():
 def vboxmanage(command):
     """Run VBoxManage command"""
 
-    binary = '"C:/Program Files/Oracle/VirtualBox/VBoxManage.exe"'
+    binary = ""
+
+    if "Windows" == getHostOS():
+        binary = '"C:/Program Files/Oracle/VirtualBox/VBoxManage.exe"'
+    else:
+        binary = "VBoxManage"
 
     p = subprocess.Popen(binary + " " + command, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     stdout, stderr = p.communicate()
