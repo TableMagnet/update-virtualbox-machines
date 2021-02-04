@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import subprocess
 import time
 import sys
@@ -5,6 +7,7 @@ import sys
 
 flag = "UpdateVirtualBoxMachinesFinalSignalOperationIsComplete"
 newline = "\r\n"
+verbose = False
 
 
 def parseArguments(argv):
@@ -35,6 +38,7 @@ def parseArguments(argv):
             arguments["shutdown"] = True
         elif "-v" == arg:
             arguments["verbose"] = True
+            verbose = True
         else:
             print("Unknown argument:", arg, newline)
             return False
@@ -73,6 +77,7 @@ def findPropertyValue(vminfo, property):
     for line in vminfo.split(newline):
         if line.startswith(property):
             return line[line.index("\"") + 1:-1]
+
     raise Exception("findPropertyValue() - Property '{0}' not found".format(property))
 
 def getHostOS():
@@ -116,7 +121,7 @@ def parseMachines(list):
         vm["uuid"] = line[line.index("\"") + 3:-1] # skip quote, space & braces
         vms.append(vm)
 
-def printIfVerbose(message, verbose):
+def printIfVerbose(message):
     """Message to print if verbose option set"""
 
     if verbose:
@@ -135,7 +140,7 @@ def update(vm, args):
     if "Windows" == operatingSystem:
         return False
 
-    printIfVerbose("Starting machine", args["verbose"])
+    printIfVerbose("Starting machine")
 
     response = vboxmanage("startvm {0}".format(vm["uuid"]))
     time.sleep(60) # Wait for VM to start
@@ -144,11 +149,11 @@ def update(vm, args):
     if "successfully started" not in response:
         return False
 
-    printIfVerbose("Machine started successfully", args["verbose"])
+    printIfVerbose("Machine started successfully")
 
     attemptCount = 0
     errorDetected = False
-    printIfVerbose("Waiting to run update command", args["verbose"])
+    printIfVerbose("Waiting to run update command")
 
     # Loop until VM is running and command succeeds
     while not errorDetected:
@@ -167,8 +172,8 @@ def update(vm, args):
             break
 
     attemptCount = 0
-    printIfVerbose("Update command {0}".format("failed" if errorDetected else "run"), args["verbose"])
-    printIfVerbose("Waiting for update to finish", args["verbose"])
+    printIfVerbose("Update command {0}".format("failed" if errorDetected else "run"))
+    printIfVerbose("Waiting for update to finish")
 
     # Loop until update is complete
     while not errorDetected:
@@ -182,8 +187,8 @@ def update(vm, args):
         else:
             time.sleep(30)
 
-    printIfVerbose("Update {0}".format("timed out" if errorDetected else "completed"), args["verbose"])
-    printIfVerbose("Shutting down machine", args["verbose"])
+    printIfVerbose("Update {0}".format("timed out" if errorDetected else "completed"))
+    printIfVerbose("Shutting down machine")
 
     vboxmanage("controlvm {0} acpipowerbutton".format(vm["uuid"]))
 
@@ -195,7 +200,7 @@ def update(vm, args):
             break;
         time.sleep(15)
 
-    printIfVerbose("Shutdown complete", args["verbose"])
+    printIfVerbose("Shutdown complete")
 
     return True
 
@@ -213,7 +218,7 @@ def main():
         print("Updating", i, machines[i]["name"])
         success = update(machines[i], args)
 
-        printIfVerbose("Update successful" if success else "Update failed", args["verbose"])
+        printIfVerbose("Update successful" if success else "Update failed")
 
     if args["shutdown"]:
         if "Windows" == getHostOS():
