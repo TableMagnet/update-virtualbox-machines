@@ -38,6 +38,7 @@ def parseArguments(argv):
             arguments["shutdown"] = True
         elif "-v" == arg:
             arguments["verbose"] = True
+            global verbose
             verbose = True
         else:
             print("Unknown argument:", arg, newline)
@@ -178,8 +179,7 @@ def update(vm, args):
     if "poweroff" != findPropertyValue(vmInfo, "VMState"):
         return False
 
-    operatingSystem = findPropertyValue(vmInfo, "ostype")
-    if "Windows" == operatingSystem:
+    if "Windows" == findPropertyValue(vmInfo, "ostype"):
         return False
 
     printIfVerbose("Starting machine")
